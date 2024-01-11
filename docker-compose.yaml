@@ -1,0 +1,67 @@
+version: "3.9"
+
+# Variables passed to the containers
+x-environment: &environment
+  DB_NAME: "mwa_image_plane_db"
+  DB_USERNAME: "admin"
+  DB_PASSWORD: "admin"
+
+  # Needed for the postgres container
+  POSTGRES_PASSWORD: "admin"
+
+  # Django variables
+  DJANGO_SECRET_KEY: "admin"
+  PYTHONUNBUFFERED: 1
+
+  # Web hosting details
+  WAN_IP: "146.118.70.58"
+  GLEAM_URL: "mwa-image-plane.duckdns.org"
+
+networks:
+  gleam-network:
+    name: gleam-network
+    driver: bridge
+
+volumes:
+  uwsgi_data:
+  web_static:
+
+services:
+  postgres:
+    hostname: postgres
+    container_name: postgres
+    build: postgres
+    restart: always
+    environment: *environment
+    networks:
+      - gleam-network
+
+  django:
+    hostname: django
+    container_name: django
+    build: gleam_webapp
+    restart: always
+    depends_on:
+      - postgres
+    environment: *environment
+    networks:
+      - gleam-network
+    volumes:
+      - uwsgi_data:/tmp/uwsgi/
+      - web_static:/gleam_webapp/static
+      - web_static:/var/www/gleam_webapp/static
+
+  nginx:
+    hostname: nginx
+    container_name: nginx
+    build: nginx
+    restart: always
+    networks:
+      - gleam-network
+    volumes:
+      - uwsgi_data:/tmp/uwsgi/
+      - web_static:/var/www/gleam_webapp/static:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - django
