@@ -1,6 +1,4 @@
 # Datafiles
-gleam_webapp/db.sqlite3
-gleam_webapp/candidate_app/migrations/
 gleam_webapp/media
 
 # Python cache files

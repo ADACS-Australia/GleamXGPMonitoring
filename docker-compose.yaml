@@ -2,11 +2,12 @@ version: "3.9"
 
 # Variables passed to the containers
 x-environment: &environment
+  # Postgres DB variables
   DB_NAME: "mwa_image_plane_db"
   DB_USERNAME: "admin"
   DB_PASSWORD: "admin"
-
-  # Needed for the postgres container
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
   POSTGRES_PASSWORD: "admin"
 
   # Django variables
@@ -14,27 +15,41 @@ x-environment: &environment
   PYTHONUNBUFFERED: 1
 
   # Web hosting details
+  SYSTEM_ENV: "DEVELOPMENT" # DEVELOPEMENT or PRODUCTION
   WAN_IP: "146.118.70.58"
   GLEAM_URL: "mwa-image-plane.duckdns.org"
 
 networks:
   gleam-network:
     name: gleam-network
-    driver: bridge
 
 volumes:
   uwsgi_data:
   web_static:
+  web_app:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/alexmassen-hane/repos/ADACS/GleamXGPMonitoring/gleam_webapp
+      o: bind
 
 services:
   postgres:
     hostname: postgres
     container_name: postgres
     build: postgres
+    user: postgres
     restart: always
     environment: *environment
     networks:
       - gleam-network
+    ports:
+      - 5433:5432
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   django:
     hostname: django
@@ -42,7 +57,8 @@ services:
     build: gleam_webapp
     restart: always
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment: *environment
     networks:
       - gleam-network
@@ -50,6 +66,7 @@ services:
       - uwsgi_data:/tmp/uwsgi/
       - web_static:/gleam_webapp/static
       - web_static:/var/www/gleam_webapp/static
+      - web_app:/gleam_webapp
 
   nginx:
     hostname: nginx
@@ -60,8 +77,8 @@ services:
       - gleam-network
     volumes:
       - uwsgi_data:/tmp/uwsgi/
-      - web_static:/var/www/gleam_webapp/static:ro
+      - web_app:/gleam_webapp
     ports:
-      - "80:80"
+      - 80:80
     depends_on:
       - django

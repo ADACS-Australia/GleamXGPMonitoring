@@ -13,6 +13,7 @@ The following is a sections describe how to use, install and maintain the web ap
    :maxdepth: 4
    :caption: Web Application:
 
-   database_installation
-   webapp_installation
-   running_server
+#   database_installation
+#   webapp_installation
+#   running_server
+sdf

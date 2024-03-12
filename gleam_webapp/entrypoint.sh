@@ -1,18 +1,27 @@
 #!/bin/bash
 set -e
 
-# This is only run on the first start-up of the container.
-CONTAINER_FIRST_STARTUP="CONTAINER_FIRST_STARTUP"
-if [ ! -e /$CONTAINER_FIRST_STARTUP ]; then
-    touch /$CONTAINER_FIRST_STARTUP
+# # If there's a DB file present, use that to seed it
+# if [ -e *.dump]; then 
 
-    # Iniitalise the DB with schema
-    python3 manage.py makemigrations candidate_app
-    python3 manage.py migrate candidate_app
+
+# fi
+
+#  Check if table has extension installed or not -This means that DB has already been initialised
+Q3C_CHECK="$( psql "postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" -XtAc "\dx" )"
+echo "Extensions in the DB:" $RESULT
+
+if  [[ $Q3C_CHECK == *q3c* ]]; then
+
+    echo "Q3C extension already exists in the DB - Not migrating." 
+
+else 
+    echo "Q3C not in DB - Migrating using Django's manage.py"
+
     python3 manage.py migrate
     python3 manage.py migrate --run-syncdb
 
-    psql "postgres://${DB_USERNAME}:${DB_PASSWORD}@postgres:5432/${DB_NAME}" -v ON_ERROR_STOP=1 -c "\
+    psql "postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" -v ON_ERROR_STOP=1 -c "\
         CREATE EXTENSION q3c; \
         CREATE INDEX ON candidate_app_candidate (q3c_ang2ipix(ra_deg, dec_deg)); \
     "
